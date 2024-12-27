@@ -11,12 +11,24 @@ android {
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        sourceCompatibility JavaVersion.VERSION_17  // Update this
+        targetCompatibility JavaVersion.VERSION_17  // Update this
     }
 
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_1_8
+        jvmTarget = '17'  // Update this
+        apiVersion = '1.9'
+        languageVersion = '1.9'
+    }
+    packagingOptions {
+        exclude 'META-INF/DEPENDENCIES'
+        exclude 'META-INF/LICENSE'
+        exclude 'META-INF/LICENSE.txt'
+        exclude 'META-INF/license.txt'
+        exclude 'META-INF/NOTICE'
+        exclude 'META-INF/NOTICE.txt'
+        exclude 'META-INF/notice.txt'
+        exclude 'META-INF/*.kotlin_module'
     }
 
     defaultConfig {
@@ -28,6 +40,7 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        multiDexEnabled true
     }
 
     buildTypes {
@@ -41,4 +54,9 @@ android {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    implementation 'androidx.multidex:multidex:2.0.1'
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"  // Add this line
 }

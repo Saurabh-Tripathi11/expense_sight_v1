@@ -1,7 +1,5 @@
 // lib/presentation/widgets/expense/expense_list_item.dart
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-
 import '../../../domain/entities/category.dart';
 import '../../../domain/models/expense.dart';
 
@@ -52,6 +50,7 @@ class ExpenseListItem extends StatelessWidget {
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
                       category.name,
@@ -59,6 +58,8 @@ class ExpenseListItem extends StatelessWidget {
                         fontWeight: FontWeight.w500,
                         fontSize: 16,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     if (expense.note != null) ...[
                       const SizedBox(height: 4),
@@ -76,9 +77,11 @@ class ExpenseListItem extends StatelessWidget {
                 ),
               ),
 
+              const SizedBox(width: 8),
+
               // Amount
               Text(
-                '\${expense.amount.toStringAsFixed(2)}',
+                '\$${expense.amount.toStringAsFixed(2)}',
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 16,

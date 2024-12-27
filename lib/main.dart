@@ -1,5 +1,7 @@
 // lib/main.dart
+
 import 'package:expense_sight/presentation/screens/analytics/analytics_screen.dart';
+import 'package:expense_sight/presentation/screens/auth/sign_in_screen.dart';
 import 'package:expense_sight/presentation/screens/category/category_list_screen.dart';
 import 'package:expense_sight/presentation/screens/settings/settings_screen.dart';
 import 'package:flutter/material.dart';
@@ -12,7 +14,7 @@ import 'data/database/database_helper.dart';
 import 'presentation/providers/expense_provider.dart';
 import 'presentation/providers/category_provider.dart';
 import 'presentation/providers/settings_provider.dart';
-import 'presentation/screens/auth/sign_in_screen.dart';
+import 'presentation/providers/auth_provider.dart';
 
 void main() async {
   // Ensure Flutter is initialized
@@ -36,6 +38,7 @@ void main() async {
 
   // Initialize database
   final dbHelper = DatabaseHelper.instance;
+  await dbHelper.database; // Ensure database is initialized
 
   runApp(MyApp(dbHelper: dbHelper));
 }
@@ -52,6 +55,10 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        // Add AuthProvider first
+        ChangeNotifierProvider(
+          create: (_) => AuthProvider(),
+        ),
         ChangeNotifierProvider(
           create: (_) => SettingsProvider(dbHelper),
         ),
@@ -70,65 +77,28 @@ class MyApp extends StatelessWidget {
             themeMode: settings.settings.themeMode,
             theme: AppTheme.lightTheme,
             darkTheme: AppTheme.darkTheme,
-            locale: Locale(settings.settings.locale),
-            home: Consumer<CategoryProvider>(
-              builder: (context, categoryProvider, _) {
-                if (categoryProvider.isLoading) {
-                  return const Center(
-                    child: CircularProgressIndicator(),
-                  );
-                }
-
-                return const SignInScreen();
-              },
-            ),
             builder: (context, child) {
-              // Apply global error handling
-              ErrorWidget.builder = (FlutterErrorDetails details) {
-                return Material(
-                  child: Container(
-                    color: Colors.white,
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(
-                          Icons.error_outline,
-                          color: Colors.red,
-                          size: 48,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Something went wrong',
-                          style: Theme.of(context).textTheme.headlineSmall,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          details.summary.toString(),
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: () {
-                            // Restart app logic here
-                          },
-                          child: const Text('Restart App'),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              };
-
-              // Apply global styling like text scaling
-              return MediaQuery(
-                data: MediaQuery.of(context).copyWith(
-                  textScaleFactor: 1.0,
+              return ScrollConfiguration(
+                behavior: const ScrollBehavior().copyWith(
+                  physics: const BouncingScrollPhysics(),
                 ),
                 child: child!,
               );
             },
+            home: Consumer<AuthProvider>(
+              builder: (context, auth, _) {
+                // Show loading indicator while checking auth state
+                if (auth.isLoading) {
+                  return const Scaffold(
+                    body: Center(
+                      child: CircularProgressIndicator(),
+                    ),
+                  );
+                }
+                // Show sign in screen if not authenticated
+                return const SignInScreen();
+              },
+            ),
             routes: {
               '/settings': (context) => const SettingsScreen(),
               '/categories': (context) => const CategoryListScreen(),
@@ -141,7 +111,7 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// Global app error handling
+// Global error boundary widget
 class AppErrorBoundary extends StatelessWidget {
   final Widget child;
 
@@ -196,43 +166,5 @@ class AppErrorBoundary extends StatelessWidget {
       },
       home: child,
     );
-  }
-}
-
-// App initialization service
-class AppInitializationService {
-  static Future<void> initialize() async {
-    // Initialize database
-    await _initializeDatabase();
-
-    // Setup crash reporting (you can add Firebase Crashlytics here)
-
-    // Initialize local notifications
-    await _initializeNotifications();
-
-    // Load user preferences
-    await _loadPreferences();
-
-    // Other initialization tasks
-  }
-
-  static Future<void> _initializeDatabase() async {
-    try {
-      final dbHelper = DatabaseHelper.instance;
-      await dbHelper.database;
-    } catch (e) {
-      debugPrint('Failed to initialize database: $e');
-      rethrow;
-    }
-  }
-
-  static Future<void> _initializeNotifications() async {
-    // Initialize local notifications
-    // You can add flutter_local_notifications setup here
-  }
-
-  static Future<void> _loadPreferences() async {
-    // Load app preferences
-    // You can add shared_preferences initialization here
   }
 }
