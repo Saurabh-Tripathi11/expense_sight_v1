@@ -4,6 +4,7 @@ import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/fade_in_animation.dart';
 import '../../providers/auth_provider.dart';
+import '../expense/expense_list_screen.dart';
 
 class SignInScreen extends StatelessWidget {
   const SignInScreen({Key? key}) : super(key: key);
@@ -44,6 +45,71 @@ class SignInScreen extends StatelessWidget {
   }
 }
 
+class _SignInButton extends StatelessWidget {
+  const _SignInButton({Key? key}) : super(key: key);
+
+  Future<void> _handleSignIn(BuildContext context) async {
+    final navigator = Navigator.of(context);
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+
+    final success = await context.read<AuthProvider>().signInWithGoogle();
+
+    if (success) {
+      // Navigate to ExpenseListScreen and remove all previous routes
+      navigator.pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder: (context) => const ExpenseListScreen(),
+        ),
+            (route) => false, // This removes all previous routes
+      );
+    } else {
+      // Show error message
+      final error = context
+          .read<AuthProvider>()
+          .error;
+      if (error != null) {
+        scaffoldMessenger.showSnackBar(
+          SnackBar(
+            content: Text(error),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<AuthProvider>(
+      builder: (context, authProvider, _) {
+        if (authProvider.isLoading) {
+          return const CircularProgressIndicator();
+        }
+
+        return Column(
+          children: [
+            ElevatedButton.icon(
+              icon: const Icon(Icons.login),
+              label: const Text(AppConstants.googleSignInButton),
+              onPressed: () => _handleSignIn(context),
+            ),
+            if (authProvider.error != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 16),
+                child: Text(
+                  authProvider.error!,
+                  style: const TextStyle(color: Colors.red),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
 class _AppLogo extends StatelessWidget {
   const _AppLogo({Key? key}) : super(key: key);
 
@@ -61,45 +127,6 @@ class _AppLogo extends StatelessWidget {
         size: 48,
         color: Colors.white,
       ),
-    );
-  }
-}
-
-class _SignInButton extends StatelessWidget {
-  const _SignInButton({Key? key}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Consumer<AuthProvider>(
-      builder: (context, authProvider, _) {
-        if (authProvider.isLoading) {
-          return const CircularProgressIndicator();
-        }
-
-        return Column(
-          children: [
-            ElevatedButton.icon(
-              icon: const Icon(Icons.login),
-              label: const Text(AppConstants.googleSignInButton),
-              onPressed: () async {
-                final success = await authProvider.signInWithGoogle();
-                if (success) {
-                  // Navigate to home screen
-                  // We'll implement this in the next story
-                }
-              },
-            ),
-            if (authProvider.error != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 16),
-                child: Text(
-                  authProvider.error!,
-                  style: const TextStyle(color: Colors.red),
-                ),
-              ),
-          ],
-        );
-      },
     );
   }
 }
