@@ -1,6 +1,7 @@
 // lib/presentation/screens/analytics/analytics_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../domain/models/expense.dart';
 import '../../providers/expense_provider.dart';
 import '../../providers/category_provider.dart';
 
@@ -116,19 +117,19 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
               children: [
                 _StatCard(
                   title: 'Total Expenses',
-                  value: '\${stats['total']?.toStringAsFixed(2) ?? '0.00'}',
+                  value: '${stats['total']?.toStringAsFixed(2) ?? '0.00'}',
                   icon: Icons.account_balance_wallet,
                 ),
                 const SizedBox(height: 16),
                 _StatCard(
                   title: 'Daily Average',
-                  value: '\${stats['average_per_day']?.toStringAsFixed(2) ?? '0.00'}',
+                  value: '${stats['average_per_day']?.toStringAsFixed(2) ?? '0.00'}',
                   icon: Icons.trending_up,
                 ),
                 const SizedBox(height: 16),
                 _StatCard(
                   title: 'Largest Expense',
-                  value: '\${stats['max_single_expense']?.toStringAsFixed(2) ?? '0.00'}',
+                  value: '${stats['max_single_expense']?.toStringAsFixed(2) ?? '0.00'}',
                   icon: Icons.arrow_upward,
                 ),
               ],
@@ -267,12 +268,17 @@ class _StatCard extends StatelessWidget {
               width: 48,
               height: 48,
               decoration: BoxDecoration(
-                color: Theme.of(context).primaryColor.withOpacity(0.1),
+                color: Theme
+                    .of(context)
+                    .primaryColor
+                    .withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(
                 icon,
-                color: Theme.of(context).primaryColor,
+                color: Theme
+                    .of(context)
+                    .primaryColor,
               ),
             ),
             const SizedBox(width: 16),
@@ -302,3 +308,4 @@ class _StatCard extends StatelessWidget {
       ),
     );
   }
+}
