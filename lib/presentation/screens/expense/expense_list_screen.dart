@@ -1,17 +1,174 @@
 // lib/presentation/screens/expense/expense_list_screen.dart
+import 'dart:ui';
+
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import '../../../core/theme/app_theme.dart';
-import '../../providers/auth_provider.dart';
+import '../../../domain/models/expense.dart';
 import '../../providers/expense_provider.dart';
-import '../../widgets/expense/expense_card.dart';
+import '../../providers/category_provider.dart';
 import '../../widgets/expense/empty_expense_list.dart';
-import '../auth/sign_in_screen.dart';
+import '../../widgets/expense/expense_list_item.dart';
+import '../../widgets/expense/expense_date_header.dart';
+import '../../widgets/expense/quick_actions_sheet.dart';
 import 'add_expense_sheet.dart';
-import 'package:expense_sight/domain/entities/expense.dart';
 
 class ExpenseListScreen extends StatelessWidget {
   const ExpenseListScreen({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: SafeArea(
+        child: CustomScrollView(
+          physics: const BouncingScrollPhysics(
+            parent: AlwaysScrollableScrollPhysics(),
+          ),
+          slivers: [
+            // Glass effect app bar
+            SliverPersistentHeader(
+              floating: true,
+              delegate: _SliverAppBarDelegate(
+                minHeight: 60,
+                maxHeight: 60,
+                child: _buildAppBar(context),
+              ),
+            ),
+
+            // Pull to refresh
+            CupertinoSliverRefreshControl(
+              onRefresh: () async {
+                await context.read<ExpenseProvider>().refreshExpenses();
+              },
+            ),
+
+            // Expenses list
+            Consumer<ExpenseProvider>(
+              builder: (context, expenseProvider, _) {
+                final groupedExpenses = expenseProvider.groupedExpenses;
+
+                if (groupedExpenses.isEmpty) {
+                  return const SliverFillRemaining(
+                    child: EmptyExpenseList(),
+                  );
+                }
+
+                return SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                      final date = groupedExpenses.keys.elementAt(index);
+                      final expenses = groupedExpenses[date]!;
+
+                      return Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Date header
+                          RepaintBoundary(
+                            child: ExpenseDateHeader(
+                              date: date,
+                              totalAmount: expenses.fold<double>(
+                                0,
+                                    (sum, expense) => sum + expense.amount,
+                              ),
+                            ),
+                          ),
+
+                          // Expense items
+                          ...expenses.map((expense) {
+                            return RepaintBoundary(
+                              child: ExpenseListItem(
+                                key: ValueKey(expense.id),
+                                expense: expense,
+                                category: context
+                                    .read<CategoryProvider>()
+                                    .getCategoryById(expense.categoryId)!,
+                                onTap: () {
+                                  // Show expense details
+                                },
+                                onLongPress: () {
+                                  // Show quick actions
+                                  _showQuickActions(context, expense);
+                                },
+                              ),
+                            );
+                          }),
+                        ],
+                      );
+                    },
+                    childCount: groupedExpenses.length,
+                  ),
+                );
+              },
+            ),
+
+            // Bottom padding for FAB
+            const SliverPadding(
+              padding: EdgeInsets.only(bottom: 80),
+            ),
+          ],
+        ),
+      ),
+      floatingActionButton: _buildFAB(context),
+    );
+  }
+
+  Widget _buildAppBar(BuildContext context) {
+    return Container(
+      color: Colors.white.withOpacity(0.9),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          color: Colors.transparent,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            children: [
+              const Text(
+                'Expenses',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const Spacer(),
+              IconButton(
+                icon: const Icon(Icons.search),
+                onPressed: () {
+                  // Show search
+                },
+              ),
+              IconButton(
+                icon: const Icon(Icons.filter_list),
+                onPressed: () {
+                  // Show filters
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFAB(BuildContext context) {
+    return Hero(
+      tag: 'fab_add_expense',
+      child: FloatingActionButton(
+        onPressed: () {
+          HapticFeedback.mediumImpact();
+          _showAddExpenseSheet(context);
+        },
+        child: const Icon(Icons.add),
+      ),
+    );
+  }
+
+  void _showQuickActions(BuildContext context, Expense expense) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => QuickActionsSheet(expense: expense),
+    );
+  }
 
   void _showAddExpenseSheet(BuildContext context) {
     showModalBottomSheet(
@@ -21,91 +178,34 @@ class ExpenseListScreen extends StatelessWidget {
       builder: (context) => const AddExpenseSheet(),
     );
   }
+}
+
+class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
+  final double minHeight;
+  final double maxHeight;
+  final Widget child;
+
+  _SliverAppBarDelegate({
+    required this.minHeight,
+    required this.maxHeight,
+    required this.child,
+  });
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Expenses'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () {
-              // Implement sign out
-              context.read<AuthProvider>().signOut().then((_) {
-                Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(
-                    builder: (context) => const SignInScreen(),
-                  ),
-                );
-              });
-            },
-          ),
-        ],
-      ),
-      body: Consumer<ExpenseProvider>(
-        builder: (context, expenseProvider, _) {
-          final expenses = expenseProvider.groupedExpenses;
+  double get minExtent => minHeight;
 
-          if (expenses.isEmpty) {
-            return const EmptyExpenseList();
-          }
+  @override
+  double get maxExtent => maxHeight;
 
-          return ListView.builder(
-            padding: const EdgeInsets.only(bottom: 80), // Space for FAB
-            itemCount: expenses.length,
-            itemBuilder: (context, index) {
-              final date = expenses.keys.elementAt(index);
-              final dailyExpenses = expenses[date]!;
-
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
-                    child: Row(
-                      children: [
-                        Text(
-                          _formatDate(date),
-                          style: AppTheme.subtitle1.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          '(${dailyExpenses.length} items)',
-                          style: AppTheme.subtitle1.copyWith(
-                            color: AppTheme.textSecondaryColor,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  ...dailyExpenses.map((expense) => ExpenseCard(expense: expense)),
-                ],
-              );
-            },
-          );
-        },
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showAddExpenseSheet(context),
-        child: const Icon(Icons.add),
-      ),
-    );
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return SizedBox.expand(child: child);
   }
 
-  String _formatDate(DateTime date) {
-    final now = DateTime.now();
-    final yesterday = DateTime(now.year, now.month, now.day - 1);
-    final dateToCheck = DateTime(date.year, date.month, date.day);
-
-    if (dateToCheck == DateTime(now.year, now.month, now.day)) {
-      return 'Today';
-    } else if (dateToCheck == yesterday) {
-      return 'Yesterday';
-    } else {
-      return '${date.day}/${date.month}/${date.year}';
-    }
+  @override
+  bool shouldRebuild(_SliverAppBarDelegate oldDelegate) {
+    return maxHeight != oldDelegate.maxHeight ||
+        minHeight != oldDelegate.minHeight ||
+        child != oldDelegate.child;
   }
 }

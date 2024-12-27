@@ -20,23 +20,26 @@ class CategorySelector extends StatelessWidget {
       id: '1',
       name: 'Food',
       icon: '🍔',
-      color: '#FF5252',
+      color: _getColorFromHex('#FF5252'),
     ),
     Category(
       id: '2',
       name: 'Transport',
       icon: '🚗',
-      color: '#448AFF',
+      color: _getColorFromHex('#448AFF'),
     ),
     Category(
       id: '3',
       name: 'Shopping',
       icon: '🛍️',
-      color: '#9C27B0',
-    ),
+      color: _getColorFromHex('#9C27B0'),    ),
     // Add more categories as needed
   ];
-
+  // Function to convert hex string to Color
+  Color _getColorFromHex(String hexColor) {
+    final hexCode = hexColor.replaceAll('#', '');
+    return Color(int.parse('0xFF$hexCode'));
+  }
   @override
   Widget build(BuildContext context) {
     return Container(
