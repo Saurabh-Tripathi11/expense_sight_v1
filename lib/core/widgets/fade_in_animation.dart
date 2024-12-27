@@ -1,3 +1,5 @@
+// lib/core/widgets/fade_in_animation.dart
+
 import 'package:flutter/material.dart';
 
 class FadeInAnimation extends StatefulWidget {

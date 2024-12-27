@@ -1,3 +1,5 @@
+// lib/presentation/widgets/expense/category_selector.dart
+
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../domain/entities/category.dart';
