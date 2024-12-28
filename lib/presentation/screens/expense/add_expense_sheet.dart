@@ -71,14 +71,13 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> with SingleTickerProv
   }
 
   Future<void> _saveExpense() async {
-    if (!_canSave) {
-      HapticFeedback.heavyImpact();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select a category'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+    if (_amount == '0') {
+      _showErrorDialog('Invalid Amount', 'Please enter an amount greater than 0');
+      return;
+    }
+
+    if (_selectedCategoryId == null) {
+      _showErrorDialog('Category Required', 'Please select a category for your expense');
       return;
     }
 
@@ -111,8 +110,46 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> with SingleTickerProv
     }
   }
 
+  void _showErrorDialog(String title, String message) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+        title: Text(
+          title,
+          style: TextStyle(
+            color: isDark ? Colors.white : Colors.black,
+          ),
+        ),
+        content: Text(
+          message,
+          style: TextStyle(
+            color: isDark ? Colors.grey[300] : Colors.grey[700],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'OK',
+              style: TextStyle(
+                color: isDark ? Colors.blue[300] : Colors.blue,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme
+        .of(context)
+        .brightness == Brightness.dark;
+
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
       child: AnimatedBuilder(
@@ -127,26 +164,53 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> with SingleTickerProv
           );
         },
         child: Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(
+          padding: EdgeInsets.only(top: MediaQuery
+              .of(context)
+              .padding
+              .top),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+            borderRadius: const BorderRadius.vertical(
               top: Radius.circular(20),
             ),
           ),
-          child: SafeArea(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _buildHeader(),
-                _buildAmountDisplay(),
-                const Divider(),
-                _buildCategorySelector(),
-                _buildDateSelector(),
-                _buildNoteField(),
-                const Divider(),
-                _buildNumberPad(),
-              ],
-            ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildHeader(),
+              Expanded(
+                flex: 4,
+                child: Column(
+                  children: [
+                    _buildAmountDisplay(),
+                    Divider(
+                      color: isDark ? Colors.grey[800] : Colors.grey[300],
+                    ),
+                    _buildCategorySelector(),
+                  ],
+                ),
+              ),
+              Expanded(
+                flex: 2,
+                child: Column(
+                  children: [
+                    _buildDateSelector(),
+                    _buildNoteField(),
+                  ],
+                ),
+              ),
+              Divider(
+                color: isDark ? Colors.grey[800] : Colors.grey[300],
+              ),
+              Expanded(
+                flex: 3,
+                child: _buildNumberPad(),
+              ),
+              SizedBox(height: MediaQuery
+                  .of(context)
+                  .padding
+                  .bottom),
+            ],
           ),
         ),
       ),
@@ -154,37 +218,44 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> with SingleTickerProv
   }
 
   Widget _buildHeader() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Padding(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.only(top: 20, left: 16, right: 16, bottom: 16),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           IconButton(
-            icon: const Icon(Icons.close),
+            icon: Icon(Icons.close,
+                color: isDark ? Colors.white : Colors.black),
             onPressed: () async {
               await _animationController.reverse();
               if (mounted) Navigator.pop(context);
             },
           ),
-          const Text(
+          Text(
             'Add Expense',
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white : Colors.black,
             ),
           ),
           _isProcessing
               ? const SizedBox(
             width: 48,
             height: 48,
-            child: CircularProgressIndicator(),
+            child: Padding(
+              padding: EdgeInsets.all(12),
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
           )
               : IconButton(
             icon: Icon(
               Icons.check,
-              color: _canSave ? Colors.blue : Colors.grey,
+              color: isDark ? Colors.grey[400] : Colors.grey[800],
             ),
-            onPressed: _canSave ? _saveExpense : null,
+            onPressed: _saveExpense, // Remove the _canSave check here
           ),
         ],
       ),
@@ -192,17 +263,22 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> with SingleTickerProv
   }
 
   Widget _buildAmountDisplay() {
+    final isDark = Theme
+        .of(context)
+        .brightness == Brightness.dark;
     final formattedAmount = '\$${_formatAmount(_amount)}';
 
     return Padding(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.only(top: 20, bottom: 8),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Text(
             formattedAmount,
-            style: const TextStyle(
-              fontSize: 48,
+            style: TextStyle(
+              fontSize: 40,
               fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white : Colors.black,
             ),
           ),
           if (_selectedCategoryId != null) ...[
@@ -213,8 +289,8 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> with SingleTickerProv
                 return Text(
                   category?.name ?? '',
                   style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey[600],
+                    fontSize: 14,
+                    color: isDark ? Colors.grey[400] : Colors.grey[600],
                   ),
                 );
               },
@@ -224,6 +300,7 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> with SingleTickerProv
       ),
     );
   }
+
 
   String _formatAmount(String amount) {
     if (amount.length > 2) {
@@ -239,60 +316,63 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> with SingleTickerProv
       builder: (context, provider, _) {
         final categories = provider.categories;
 
-        return SizedBox(
-          height: 100,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: categories.length,
-            itemBuilder: (context, index) {
-              final category = categories[index];
-              final isSelected = category.id == _selectedCategoryId;
+        return Padding(
+          padding: const EdgeInsets.only(top: 16), // Added top padding
+          child: SizedBox(
+            height: 90,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              itemCount: categories.length,
+              itemBuilder: (context, index) {
+                final category = categories[index];
+                final isSelected = category.id == _selectedCategoryId;
 
-              return Padding(
-                padding: const EdgeInsets.only(right: 16),
-                child: GestureDetector(
-                  onTap: () {
-                    HapticFeedback.selectionClick();
-                    setState(() => _selectedCategoryId = category.id);
-                  },
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        width: 60,
-                        height: 60,
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? category.color
-                              : category.color.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Center(
-                          child: Text(
-                            category.icon,
-                            style: TextStyle(
-                              fontSize: 24,
-                              color: isSelected ? Colors.white : null,
+                return Padding(
+                  padding: const EdgeInsets.all(4),
+                  child: GestureDetector(
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      setState(() => _selectedCategoryId = category.id);
+                    },
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 50,
+                          height: 50,
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? category.color
+                                : category.color.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Center(
+                            child: Text(
+                              category.icon,
+                              style: TextStyle(
+                                fontSize: 24,
+                                color: isSelected ? Colors.white : null,
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        category.name,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: isSelected ? FontWeight.bold : null,
-                          color: isSelected ? category.color : Colors.grey[600],
+                        const SizedBox(height: 4),
+                        Text(
+                          category.name,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: isSelected ? FontWeight.bold : null,
+                            color: isSelected ? category.color : Colors
+                                .grey[600],
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              );
-            },
+                );
+              },
+            ),
           ),
         );
       },
@@ -300,10 +380,23 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> with SingleTickerProv
   }
 
   Widget _buildDateSelector() {
+    final isDark = Theme
+        .of(context)
+        .brightness == Brightness.dark;
+
     return ListTile(
-      leading: const Icon(Icons.calendar_today),
+      dense: true,
+      leading: Icon(
+        Icons.calendar_today,
+        size: 20,
+        color: isDark ? Colors.grey[400] : Colors.grey[600],
+      ),
       title: Text(
         DateFormat('EEEE, MMMM d').format(_selectedDate),
+        style: TextStyle(
+          fontSize: 14,
+          color: isDark ? Colors.white : Colors.black,
+        ),
       ),
       onTap: () async {
         final date = await showDatePicker(
@@ -311,6 +404,19 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> with SingleTickerProv
           initialDate: _selectedDate,
           firstDate: DateTime(2000),
           lastDate: DateTime.now().add(const Duration(days: 1)),
+          builder: (context, child) {
+            return Theme(
+              data: isDark
+                  ? ThemeData.dark().copyWith(
+                colorScheme: const ColorScheme.dark(
+                  primary: Colors.blue,
+                  surface: Color(0xFF1E1E1E),
+                ),
+              )
+                  : ThemeData.light(),
+              child: child!,
+            );
+          },
         );
         if (date != null) {
           setState(() => _selectedDate = date);
@@ -320,14 +426,30 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> with SingleTickerProv
   }
 
   Widget _buildNoteField() {
+    final isDark = Theme
+        .of(context)
+        .brightness == Brightness.dark;
+
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: TextField(
         controller: _noteController,
-        decoration: const InputDecoration(
+        decoration: InputDecoration(
           hintText: 'Add note (optional)',
+          hintStyle: TextStyle(
+            color: isDark ? Colors.grey[400] : Colors.grey[600],
+          ),
           border: InputBorder.none,
-          prefixIcon: Icon(Icons.note),
+          prefixIcon: Icon(
+            Icons.note,
+            size: 20,
+            color: isDark ? Colors.grey[400] : Colors.grey[600],
+          ),
+          contentPadding: const EdgeInsets.symmetric(vertical: 8),
+        ),
+        style: TextStyle(
+          fontSize: 14,
+          color: isDark ? Colors.white : Colors.black,
         ),
         maxLines: 1,
         textInputAction: TextInputAction.done,
@@ -335,12 +457,15 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> with SingleTickerProv
     );
   }
 
+
+// Update the NumberPad to use a smaller aspect ratio
   Widget _buildNumberPad() {
     return GridView.count(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       crossAxisCount: 3,
-      childAspectRatio: 1.5,
+      childAspectRatio: 2.0,
+      // Increased aspect ratio to make buttons shorter
       children: [
         _buildNumberKey('1'),
         _buildNumberKey('2'),
@@ -359,6 +484,10 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> with SingleTickerProv
   }
 
   Widget _buildNumberKey(String number) {
+    final isDark = Theme
+        .of(context)
+        .brightness == Brightness.dark;
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -366,9 +495,10 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> with SingleTickerProv
         child: Center(
           child: Text(
             number,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white : Colors.black,
             ),
           ),
         ),
@@ -377,6 +507,10 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> with SingleTickerProv
   }
 
   Widget _buildDeleteKey() {
+    final isDark = Theme
+        .of(context)
+        .brightness == Brightness.dark;
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -385,8 +519,11 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> with SingleTickerProv
           HapticFeedback.heavyImpact();
           setState(() => _amount = '0');
         },
-        child: const Center(
-          child: Icon(Icons.backspace_outlined),
+        child: Center(
+          child: Icon(
+            Icons.backspace_outlined,
+            color: isDark ? Colors.white : Colors.black,
+          ),
         ),
       ),
     );
