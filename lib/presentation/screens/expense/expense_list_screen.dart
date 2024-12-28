@@ -71,7 +71,8 @@ class ExpenseListScreen extends StatelessWidget {
 
                           // Expense items
                           ...expenses.map((expense) {
-                            final category = categoryProvider.getCategoryById(expense.categoryId);
+                            final category = categoryProvider.getCategoryById(
+                                expense.categoryId);
 
                             // Skip if category is not found
                             if (category == null) {
@@ -85,7 +86,8 @@ class ExpenseListScreen extends StatelessWidget {
                                 category: category,
                                 onTap: () {
                                   // Show expense details
-                                  _showExpenseDetails(context, expense, category);
+                                  _showExpenseDetails(
+                                      context, expense, category);
                                 },
                                 onLongPress: () {
                                   _showQuickActions(context, expense);
@@ -119,13 +121,14 @@ class ExpenseListScreen extends StatelessWidget {
     );
   }
 
+  // In ExpenseListScreen class
   Widget _buildAppBar(BuildContext context) {
-    return Container(
-      color: Theme.of(context).scaffoldBackgroundColor.withOpacity(0.9),
+    return ClipRect(
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
         child: Container(
-          color: Colors.transparent,
+          height: 60,
+          color: Theme.of(context).scaffoldBackgroundColor.withOpacity(0.8),
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(
             children: [
@@ -203,7 +206,14 @@ class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
 
   @override
   Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
-    return SizedBox.expand(child: child);
+    return SizedBox.expand(
+      child: Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).scaffoldBackgroundColor.withOpacity(0.0),
+        ),
+        child: child,
+      ),
+    );
   }
 
   @override

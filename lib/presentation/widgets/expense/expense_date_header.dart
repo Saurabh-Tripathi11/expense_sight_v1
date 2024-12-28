@@ -1,5 +1,4 @@
 // lib/presentation/widgets/expense/expense_date_header.dart
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -32,17 +31,19 @@ class ExpenseDateHeader extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            _formattedDate,
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
+          Expanded(
+            child: Text(
+              _formattedDate,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
             ),
           ),
-          const Spacer(),
           Text(
-            '\${totalAmount.toStringAsFixed(2)}',
+            '\$${totalAmount.toStringAsFixed(2)}',
             style: TextStyle(
               fontWeight: FontWeight.w500,
               fontSize: 16,
