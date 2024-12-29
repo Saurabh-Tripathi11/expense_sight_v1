@@ -23,9 +23,7 @@ class QuickActionsSheet extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 20),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
-        borderRadius: const BorderRadius.vertical(
-          top: Radius.circular(20),
-        ),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -67,18 +65,84 @@ class QuickActionsSheet extends StatelessWidget {
             ),
             title: const Text(
               'Delete Expense',
-              style: TextStyle(
-                color: Colors.red,
-              ),
+              style: TextStyle(color: Colors.red),
             ),
-            onTap: () async {
-              Navigator.pop(context);
-              await _deleteExpense(context);
-            },
+            onTap: () => _handleDelete(context),
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _handleDelete(BuildContext context) async {
+    final bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Expense'),
+        content: const Text(
+          'Are you sure you want to delete this expense?\nThis action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('CANCEL'),
+          ),
+          TextButton(
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('DELETE'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true || !context.mounted) return;
+
+    try {
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator()),
+      );
+
+      final provider = Provider.of<ExpenseProvider>(context, listen: false);
+
+      // Delete the expense
+      await provider.deleteExpense(expense.id);
+
+      if (!context.mounted) return;
+
+      // Dismiss loading indicator
+      Navigator.pop(context);
+      // Dismiss quick actions sheet
+      Navigator.pop(context);
+
+      // Show success message
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Expense deleted successfully'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        // Dismiss loading indicator if still showing
+        Navigator.pop(context);
+        // Dismiss quick actions sheet
+        Navigator.pop(context);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to delete expense: ${e.toString()}'),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   void _showEditExpenseSheet(BuildContext context) {
@@ -88,66 +152,5 @@ class QuickActionsSheet extends StatelessWidget {
       backgroundColor: Colors.transparent,
       builder: (context) => EditExpenseSheet(expense: expense),
     );
-  }
-
-  Future<void> _deleteExpense(BuildContext context) async {
-    final bool? confirm = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext context) => AlertDialog(
-        title: const Text('Delete Expense'),
-        content: const Text(
-          'Are you sure you want to delete this expense? This action cannot be undone.',
-        ),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('CANCEL'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text(
-              'DELETE',
-              style: TextStyle(color: Colors.red),
-            ),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm == true && context.mounted) {
-      try {
-        print('Starting expense deletion process'); // Debug print
-        final expenseProvider = Provider.of<ExpenseProvider>(
-          context,
-          listen: false,
-        );
-
-        print('Deleting expense: ${expense.id}'); // Debug print
-        await expenseProvider.deleteExpense(expense.id);
-        print('Delete operation completed'); // Debug print
-
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Expense deleted successfully'),
-              behavior: SnackBarBehavior.floating,
-              duration: Duration(seconds: 2),
-            ),
-          );
-        }
-      } catch (e) {
-        print('Error during deletion: $e'); // Debug print
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Failed to delete expense: ${e.toString()}'),
-              behavior: SnackBarBehavior.floating,
-              backgroundColor: Colors.red,
-              duration: Duration(seconds: 3),
-            ),
-          );
-        }
-      }
-    }
   }
 }

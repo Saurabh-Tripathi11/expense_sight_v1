@@ -15,6 +15,38 @@ class DatabaseHelper {
     _database ??= await _initDatabase();
     return _database!;
   }
+  Future<bool> deleteExpenseFromDB(String expenseId) async {
+    final db = await database;
+
+    try {
+      print('DB Helper: Starting deletion for expense ID: $expenseId');
+
+      // Verify expense exists first
+      final List<Map<String, dynamic>> expense = await db.query(
+        'expenses',
+        where: 'id = ?',
+        whereArgs: [expenseId],
+      );
+
+      if (expense.isEmpty) {
+        print('DB Helper: No expense found with ID: $expenseId');
+        return false;
+      }
+
+      // Perform deletion
+      final deletedRows = await db.rawDelete(
+        'DELETE FROM expenses WHERE id = ?',
+        [expenseId],
+      );
+
+      print('DB Helper: Deleted $deletedRows rows');
+
+      return deletedRows > 0;
+    } catch (e) {
+      print('DB Helper: Error during deletion: $e');
+      throw Exception('Failed to delete expense: $e');
+    }
+  }
 
   Future<Database> _initDatabase() async {
     final path = join(await getDatabasesPath(), dbName);
@@ -122,20 +154,28 @@ class DatabaseHelper {
   // Delete expense
   Future<void> deleteExpense(String id) async {
     try {
-      print('DatabaseHelper: Deleting expense with ID: $id'); // Debug print
       final db = await database;
-      final rowsDeleted = await db.delete(
-        'expenses',
-        where: 'id = ?',
-        whereArgs: [id],
-      );
-      print('DatabaseHelper: Rows deleted: $rowsDeleted'); // Debug print
-      if (rowsDeleted == 0) {
-        throw Exception('Expense not found');
-      }
+
+      print('DatabaseHelper: Beginning delete transaction for ID: $id');
+
+      await db.transaction((txn) async {
+        final rowsDeleted = await txn.delete(
+          'expenses',
+          where: 'id = ?',
+          whereArgs: [id],
+        );
+
+        print('DatabaseHelper: Rows deleted: $rowsDeleted');
+
+        if (rowsDeleted == 0) {
+          throw Exception('No expense found with ID: $id');
+        }
+      });
+
+      print('DatabaseHelper: Delete transaction completed successfully');
     } catch (e) {
-      print('DatabaseHelper: Error deleting expense: $e'); // Debug print
-      throw Exception('Failed to delete expense: $e');
+      print('DatabaseHelper: Error in delete transaction: $e');
+      rethrow;
     }
   }
 

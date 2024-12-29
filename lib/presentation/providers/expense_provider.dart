@@ -22,6 +22,61 @@ class ExpenseProvider with ChangeNotifier {
     _loadExpenses();
   }
 
+  Future<bool> deleteExpenseById(String id) async {
+    try {
+      print('Provider: Starting deletion process for ID: $id');
+      _isLoading = true;
+      notifyListeners();
+
+      // First try to delete from database
+      final success = await _db.deleteExpenseFromDB(id);
+
+      if (success) {
+        print('Provider: Database deletion successful, updating state');
+        // If database deletion successful, update local state
+        _expenses.removeWhere((expense) => expense.id == id);
+        _error = null;
+
+        print('Provider: Local state updated, expense count: ${_expenses.length}');
+      } else {
+        print('Provider: Database deletion failed');
+        _error = 'Failed to delete expense';
+      }
+
+      _isLoading = false;
+      notifyListeners();
+
+      return success;
+
+    } catch (e) {
+      print('Provider: Error during deletion: $e');
+      _error = 'Error deleting expense: $e';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<void> loadAllExpenses() async {
+    try {
+      print('Provider: Loading all expenses');
+      _isLoading = true;
+      notifyListeners();
+
+      _expenses = await _db.getAllExpenses();
+      _error = null;
+
+      print('Provider: Loaded ${_expenses.length} expenses');
+
+    } catch (e) {
+      print('Provider: Error loading expenses: $e');
+      _error = 'Error loading expenses: $e';
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   // Initialize and load expenses
   Future<void> _loadExpenses() async {
     if (_isLoading) return;
@@ -42,25 +97,46 @@ class ExpenseProvider with ChangeNotifier {
     }
   }
 
-  // Delete expense
   Future<void> deleteExpense(String id) async {
     try {
-      print('Deleting expense with ID: $id'); // Debug print
-      await _db.deleteExpense(id);
+      print('ExpenseProvider: Deleting expense with ID: $id'); // Debug log
+
+      // First remove from local state
       _expenses.removeWhere((expense) => expense.id == id);
+      // Notify listeners immediately for UI update
       notifyListeners();
-      print('Expense deleted successfully'); // Debug print
+
+      // Then delete from database
+      await _db.deleteExpense(id);
+
+      print('ExpenseProvider: Expense deleted successfully'); // Debug log
     } catch (e) {
-      print('Error deleting expense: $e'); // Debug print
-      _error = 'Failed to delete expense: ${e.toString()}';
-      notifyListeners();
-      throw e; // Re-throw to handle in UI
+      print('ExpenseProvider: Error deleting expense: $e'); // Debug log
+
+      // On error, refresh expenses from database to ensure consistent state
+      await _loadExpenses();
+
+      rethrow; // Rethrow to handle in UI
     }
   }
-  // Refresh expenses (used for pull-to-refresh)
+
+  // Add method to force refresh expenses
   Future<void> refreshExpenses() async {
-    await _loadExpenses();
+    try {
+      _isLoading = true;
+      notifyListeners();
+
+      _expenses = await _db.getAllExpenses();
+
+      _isLoading = false;
+      notifyListeners();
+    } catch (e) {
+      _error = 'Failed to refresh expenses: ${e.toString()}';
+      _isLoading = false;
+      notifyListeners();
+    }
   }
+
 
   // Group expenses by date
   Map<DateTime, List<Expense>> get groupedExpenses {
