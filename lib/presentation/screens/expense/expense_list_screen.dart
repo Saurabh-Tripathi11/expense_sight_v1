@@ -7,10 +7,14 @@ import '../../../domain/entities/category.dart';
 import '../../../domain/models/expense.dart';
 import '../../providers/expense_provider.dart';
 import '../../providers/category_provider.dart';
+import '../../providers/search_filter_provider.dart';
 import '../../widgets/expense/empty_expense_list.dart';
 import '../../widgets/expense/expense_list_item.dart';
 import '../../widgets/expense/expense_date_header.dart';
+import '../../widgets/expense/search_bar.dart';
+import '../../widgets/expense/filter_sheet.dart';
 import 'add_expense_sheet.dart';
+import '../../providers/search_filter_provider.dart';
 
 class ExpenseListScreen extends StatelessWidget {
   const ExpenseListScreen({Key? key}) : super(key: key);
@@ -19,94 +23,169 @@ class ExpenseListScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: CustomScrollView(
-          physics: const BouncingScrollPhysics(
-            parent: AlwaysScrollableScrollPhysics(),
-          ),
-          slivers: [
-            // Glass effect app bar
-            SliverPersistentHeader(
-              floating: true,
-              delegate: _SliverAppBarDelegate(
-                minHeight: 60,
-                maxHeight: 60,
-                child: _buildAppBar(context),
+        child: Column(
+          children: [
+            // Glass effect app bar with search and filter
+            ClipRect(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                child: Container(
+                  color: Theme.of(context).scaffoldBackgroundColor.withOpacity(0.8),
+                  child: Column(
+                    children: [
+                      // App bar
+                      Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Row(
+                          children: [
+                            const Text(
+                              'Expenses',
+                              style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const Spacer(),
+                            // Search button
+                            IconButton(
+                              icon: const Icon(Icons.search),
+                              onPressed: () {
+                                context.read<SearchFilterProvider>().toggleSearch();
+                              },
+                            ),
+                            // Filter button
+                            IconButton(
+                              icon: const Icon(Icons.filter_list),
+                              onPressed: () => _showFilterSheet(context),
+                            ),
+                          ],
+                        ),
+                      ),
+                      // Search bar
+                      Consumer<SearchFilterProvider>(
+                        builder: (context, provider, _) {
+                          return AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 200),
+                            child: provider.isSearchActive
+                                ? ExpenseSearchBar()
+                                : const SizedBox.shrink(),
+                          );
+                        },
+                      ),
+                      // Active filters indicator
+                      Consumer<SearchFilterProvider>(
+                        builder: (context, provider, _) {
+                          final hasActiveFilters = provider.filter.categoryIds.isNotEmpty ||
+                              provider.filter.startDate != null ||
+                              provider.filter.endDate != null ||
+                              provider.filter.minAmount != null ||
+                              provider.filter.maxAmount != null;
+
+                          if (!hasActiveFilters) return const SizedBox.shrink();
+
+                          return Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.filter_list,
+                                  size: 16,
+                                  color: Theme.of(context).primaryColor,
+                                ),
+                                const SizedBox(width: 8),
+                                const Text('Filters active'),
+                                const Spacer(),
+                                TextButton(
+                                  onPressed: () {
+                                    provider.clearAll();
+                                  },
+                                  child: const Text('Clear all'),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
 
-            // Expenses list
-            Consumer2<ExpenseProvider, CategoryProvider>(
-              builder: (context, expenseProvider, categoryProvider, _) {
-                final groupedExpenses = expenseProvider.groupedExpenses;
+            // Expense list
+            Expanded(
+              child: Consumer3<ExpenseProvider, CategoryProvider, SearchFilterProvider>(
+                builder: (context, expenseProvider, categoryProvider, searchFilterProvider, _) {
+                  // Get and filter expenses
+                  var expenses = expenseProvider.expenses;
+                  expenses = searchFilterProvider.filterExpenses(expenses);
+                  expenses = searchFilterProvider.sortExpenses(expenses);
 
-                if (groupedExpenses.isEmpty) {
-                  return const SliverFillRemaining(
-                    child: EmptyExpenseList(),
-                  );
-                }
+                  if (expenses.isEmpty) {
+                    if (searchFilterProvider.searchQuery.isNotEmpty ||
+                        searchFilterProvider.filter.categoryIds.isNotEmpty) {
+                      return const Center(
+                        child: Text('No expenses match your filters'),
+                      );
+                    }
+                    return const EmptyExpenseList();
+                  }
 
-                return SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                        (context, index) {
+                  // Group expenses by date
+                  final groupedExpenses = <DateTime, List<Expense>>{};
+                  for (final expense in expenses) {
+                    final date = DateTime(
+                      expense.date.year,
+                      expense.date.month,
+                      expense.date.day,
+                    );
+                    groupedExpenses.putIfAbsent(date, () => []).add(expense);
+                  }
+
+                  return ListView.builder(
+                    padding: const EdgeInsets.only(bottom: 80),
+                    itemCount: groupedExpenses.length,
+                    itemBuilder: (context, index) {
                       final date = groupedExpenses.keys.elementAt(index);
-                      final expenses = groupedExpenses[date];
-
-                      if (expenses == null || expenses.isEmpty) {
-                        return const SizedBox.shrink();
-                      }
+                      final dayExpenses = groupedExpenses[date]!;
+                      final totalAmount = dayExpenses.fold<double>(
+                        0,
+                            (sum, expense) => sum + expense.amount,
+                      );
 
                       return Column(
-                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Date header
-                          RepaintBoundary(
-                            child: ExpenseDateHeader(
-                              date: date,
-                              totalAmount: expenses.fold<double>(
-                                0,
-                                    (sum, expense) => sum + expense.amount,
-                              ),
-                            ),
+                          ExpenseDateHeader(
+                            date: date,
+                            totalAmount: totalAmount,
                           ),
-
-                          // Expense items
-                          ...expenses.map((expense) {
+                          ...dayExpenses.map((expense) {
                             final category = categoryProvider.getCategoryById(
-                                expense.categoryId);
+                              expense.categoryId,
+                            );
+                            if (category == null) return const SizedBox.shrink();
 
-                            // Skip if category is not found
-                            if (category == null) {
-                              return const SizedBox.shrink();
-                            }
-
-                            return RepaintBoundary(
-                              child: ExpenseListItem(
-                                key: ValueKey(expense.id),
-                                expense: expense,
-                                category: category,
-                                onTap: () {
-                                  // Show expense details
-                                  _showExpenseDetails(
-                                      context, expense, category);
-                                },
-                                onLongPress: () {
-                                  _showQuickActions(context, expense);
-                                },
+                            return ExpenseListItem(
+                              expense: expense,
+                              category: category,
+                              onTap: () => _showExpenseDetails(
+                                context,
+                                expense,
+                                category,
+                              ),
+                              onLongPress: () => _showQuickActions(
+                                context,
+                                expense,
                               ),
                             );
                           }).toList(),
                         ],
                       );
                     },
-                    childCount: groupedExpenses.length,
-                  ),
-                );
-              },
-            ),
-
-            // Bottom padding for FAB
-            const SliverPadding(
-              padding: EdgeInsets.only(bottom: 80),
+                  );
+                },
+              ),
             ),
           ],
         ),
@@ -121,60 +200,31 @@ class ExpenseListScreen extends StatelessWidget {
     );
   }
 
-  // In ExpenseListScreen class
-  Widget _buildAppBar(BuildContext context) {
-    return ClipRect(
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-        child: Container(
-          height: 60,
-          color: Theme.of(context).scaffoldBackgroundColor.withOpacity(0.8),
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            children: [
-              const Text(
-                'Expenses',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const Spacer(),
-              IconButton(
-                icon: const Icon(Icons.search),
-                onPressed: () {
-                  // Show search
-                },
-              ),
-              IconButton(
-                icon: const Icon(Icons.filter_list),
-                onPressed: () {
-                  // Show filters
-                },
-              ),
-            ],
-          ),
+  void _showFilterSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(20),
         ),
+      ),
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.7,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        expand: false,
+        builder: (context, scrollController) => FilterSheet(),
       ),
     );
   }
 
   void _showExpenseDetails(BuildContext context, Expense expense, Category category) {
-    // TODO: Implement expense details screen
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Expense details coming soon!'),
-      ),
-    );
+    // Show expense details screen (to be implemented)
   }
 
   void _showQuickActions(BuildContext context, Expense expense) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => QuickActionsSheet(expense: expense),
-    );
+    // Show quick actions bottom sheet
   }
 
   void _showAddExpenseSheet(BuildContext context) {
@@ -184,159 +234,5 @@ class ExpenseListScreen extends StatelessWidget {
       backgroundColor: Colors.transparent,
       builder: (context) => const AddExpenseSheet(),
     );
-  }
-}
-
-class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
-  final double minHeight;
-  final double maxHeight;
-  final Widget child;
-
-  _SliverAppBarDelegate({
-    required this.minHeight,
-    required this.maxHeight,
-    required this.child,
-  });
-
-  @override
-  double get minExtent => minHeight;
-
-  @override
-  double get maxExtent => maxHeight;
-
-  @override
-  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
-    return SizedBox.expand(
-      child: Container(
-        decoration: BoxDecoration(
-          color: Theme.of(context).scaffoldBackgroundColor.withOpacity(0.0),
-        ),
-        child: child,
-      ),
-    );
-  }
-
-  @override
-  bool shouldRebuild(_SliverAppBarDelegate oldDelegate) {
-    return maxHeight != oldDelegate.maxHeight ||
-        minHeight != oldDelegate.minHeight ||
-        child != oldDelegate.child;
-  }
-}
-
-class QuickActionsSheet extends StatelessWidget {
-  final Expense expense;
-
-  const QuickActionsSheet({
-    Key? key,
-    required this.expense,
-  }) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).scaffoldBackgroundColor,
-        borderRadius: const BorderRadius.vertical(
-          top: Radius.circular(20),
-        ),
-      ),
-      child: SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Handle
-            Container(
-              width: 40,
-              height: 4,
-              margin: const EdgeInsets.symmetric(vertical: 12),
-              decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-
-            ListTile(
-              leading: const Icon(Icons.edit),
-              title: const Text('Edit'),
-              onTap: () {
-                Navigator.pop(context);
-                // TODO: Show edit expense sheet
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.content_copy),
-              title: const Text('Duplicate'),
-              onTap: () {
-                Navigator.pop(context);
-                // TODO: Implement duplicate functionality
-              },
-            ),
-            ListTile(
-              leading: const Icon(
-                Icons.delete,
-                color: Colors.red,
-              ),
-              title: const Text(
-                'Delete',
-                style: TextStyle(color: Colors.red),
-              ),
-              onTap: () {
-                Navigator.pop(context);
-                _showDeleteConfirmation(context);
-              },
-            ),
-            const SizedBox(height: 16),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _showDeleteConfirmation(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Expense'),
-        content: const Text(
-          'Are you sure you want to delete this expense? This action cannot be undone.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text(
-              'Delete',
-              style: TextStyle(color: Colors.red),
-            ),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true && context.mounted) {
-      try {
-        await context.read<ExpenseProvider>().deleteExpense(expense.id);
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Expense deleted successfully'),
-            ),
-          );
-        }
-      } catch (e) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Failed to delete expense: $e'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      }
-    }
   }
 }

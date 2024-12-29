@@ -15,6 +15,7 @@ import 'presentation/providers/expense_provider.dart';
 import 'presentation/providers/category_provider.dart';
 import 'presentation/providers/settings_provider.dart';
 import 'presentation/providers/auth_provider.dart';
+import 'presentation/providers/search_filter_provider.dart';
 
 void main() async {
   // Ensure Flutter is initialized
@@ -55,18 +56,25 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        // Add AuthProvider first
+        // Auth provider
         ChangeNotifierProvider(
           create: (_) => AuthProvider(),
         ),
+        // Settings provider
         ChangeNotifierProvider(
           create: (_) => SettingsProvider(dbHelper),
         ),
+        // Category provider
         ChangeNotifierProvider(
           create: (_) => CategoryProvider(dbHelper),
         ),
+        // Expense provider
         ChangeNotifierProvider(
           create: (_) => ExpenseProvider(dbHelper),
+        ),
+        // Add Search and Filter provider
+        ChangeNotifierProvider(
+          create: (_) => SearchFilterProvider(),
         ),
       ],
       child: Consumer<SettingsProvider>(
