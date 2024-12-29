@@ -1,4 +1,5 @@
 // lib/presentation/widgets/expense/expense_list_item.dart
+
 import 'package:flutter/material.dart';
 import '../../../domain/entities/category.dart';
 import '../../../domain/models/expense.dart';
@@ -7,20 +8,20 @@ class ExpenseListItem extends StatelessWidget {
   final Expense expense;
   final Category category;
   final VoidCallback onTap;
-  final VoidCallback onLongPress;
+  final VoidCallback? onLongPress;
 
   const ExpenseListItem({
     Key? key,
     required this.expense,
     required this.category,
     required this.onTap,
-    required this.onLongPress,
+    this.onLongPress,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      margin: EdgeInsets.zero,
       child: InkWell(
         onTap: onTap,
         onLongPress: onLongPress,
@@ -76,8 +77,6 @@ class ExpenseListItem extends StatelessWidget {
                   ],
                 ),
               ),
-
-              const SizedBox(width: 8),
 
               // Amount
               Text(

@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 import '../../domain/models/expense.dart';
 import '../../data/database/database_helper.dart';
 
+
 class ExpenseProvider with ChangeNotifier {
   final DatabaseHelper _db;
   List<Expense> _expenses = [];
@@ -41,6 +42,21 @@ class ExpenseProvider with ChangeNotifier {
     }
   }
 
+  // Delete expense
+  Future<void> deleteExpense(String id) async {
+    try {
+      print('Deleting expense with ID: $id'); // Debug print
+      await _db.deleteExpense(id);
+      _expenses.removeWhere((expense) => expense.id == id);
+      notifyListeners();
+      print('Expense deleted successfully'); // Debug print
+    } catch (e) {
+      print('Error deleting expense: $e'); // Debug print
+      _error = 'Failed to delete expense: ${e.toString()}';
+      notifyListeners();
+      throw e; // Re-throw to handle in UI
+    }
+  }
   // Refresh expenses (used for pull-to-refresh)
   Future<void> refreshExpenses() async {
     await _loadExpenses();
@@ -105,19 +121,6 @@ class ExpenseProvider with ChangeNotifier {
       }
     } catch (e) {
       _error = 'Failed to update expense: ${e.toString()}';
-      notifyListeners();
-      rethrow;
-    }
-  }
-
-  // Delete expense
-  Future<void> deleteExpense(String id) async {
-    try {
-      await _db.deleteExpense(id);
-      _expenses.removeWhere((expense) => expense.id == id);
-      notifyListeners();
-    } catch (e) {
-      _error = 'Failed to delete expense: ${e.toString()}';
       notifyListeners();
       rethrow;
     }

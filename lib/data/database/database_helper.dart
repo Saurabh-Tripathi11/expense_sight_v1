@@ -18,22 +18,24 @@ class DatabaseHelper {
 
   Future<Database> _initDatabase() async {
     final path = join(await getDatabasesPath(), dbName);
+    print('Database path: $path'); // Debug print
 
     return await openDatabase(
         path,
         version: 1,
         onCreate: (db, version) async {
-          // Create categories table
+          // Create expenses table
           await db.execute('''
-          CREATE TABLE categories (
+          CREATE TABLE expenses (
             id TEXT PRIMARY KEY,
-            name TEXT NOT NULL,
-            icon TEXT NOT NULL,
-            color INTEGER NOT NULL,
-            parentId TEXT,
-            isSystem INTEGER DEFAULT 0,
+            amount REAL NOT NULL,
+            categoryId TEXT NOT NULL,
+            date INTEGER NOT NULL,
+            note TEXT,
             createdAt INTEGER NOT NULL,
-            FOREIGN KEY (parentId) REFERENCES categories (id)
+            updatedAt INTEGER NOT NULL,
+            isSynced INTEGER DEFAULT 0,
+            FOREIGN KEY (categoryId) REFERENCES categories (id)
           )
         ''');
 
@@ -81,15 +83,6 @@ class DatabaseHelper {
   }
 
   // Expense Operations
-  Future<List<Expense>> getAllExpenses() async {
-    final db = await database;
-    final List<Map<String, dynamic>> maps = await db.query(
-      'expenses',
-      orderBy: 'date DESC',
-    );
-
-    return List.generate(maps.length, (i) => Expense.fromMap(maps[i]));
-  }
 
   Future<List<Expense>> getExpensesByDateRange(DateTime start, DateTime end) async {
     final db = await database;
@@ -125,14 +118,43 @@ class DatabaseHelper {
     );
   }
 
+
+  // Delete expense
   Future<void> deleteExpense(String id) async {
-    final db = await database;
-    await db.delete(
-      'expenses',
-      where: 'id = ?',
-      whereArgs: [id],
-    );
+    try {
+      print('DatabaseHelper: Deleting expense with ID: $id'); // Debug print
+      final db = await database;
+      final rowsDeleted = await db.delete(
+        'expenses',
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+      print('DatabaseHelper: Rows deleted: $rowsDeleted'); // Debug print
+      if (rowsDeleted == 0) {
+        throw Exception('Expense not found');
+      }
+    } catch (e) {
+      print('DatabaseHelper: Error deleting expense: $e'); // Debug print
+      throw Exception('Failed to delete expense: $e');
+    }
   }
+
+  // Get all expenses
+  Future<List<Expense>> getAllExpenses() async {
+    try {
+      final db = await database;
+      final List<Map<String, dynamic>> maps = await db.query(
+        'expenses',
+        orderBy: 'date DESC',
+      );
+      print('DatabaseHelper: Found ${maps.length} expenses'); // Debug print
+      return List.generate(maps.length, (i) => Expense.fromMap(maps[i]));
+    } catch (e) {
+      print('DatabaseHelper: Error getting expenses: $e'); // Debug print
+      throw Exception('Failed to get expenses: $e');
+    }
+  }
+
 
   // Category Operations
   Future<List<Category>> getAllCategories() async {

@@ -1,9 +1,11 @@
 // lib/presentation/widgets/expense/quick_actions_sheet.dart
-import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import '../../../domain/models/expense.dart';
 import '../../providers/expense_provider.dart';
+import '../../screens/expense/edit_expense_sheet.dart';
 
 class QuickActionsSheet extends StatelessWidget {
   final Expense expense;
@@ -15,112 +17,96 @@ class QuickActionsSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 20),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+        borderRadius: const BorderRadius.vertical(
           top: Radius.circular(20),
         ),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Handle
+          // Handle bar
           Container(
             width: 40,
             height: 4,
             decoration: BoxDecoration(
-              color: Colors.grey[300],
+              color: isDark ? Colors.grey[800] : Colors.grey[300],
               borderRadius: BorderRadius.circular(2),
             ),
           ),
           const SizedBox(height: 20),
 
-          // Actions
-          _buildActionItem(
-            context,
-            icon: Icons.edit,
-            label: 'Edit',
+          // Edit Action
+          ListTile(
+            leading: Icon(
+              Icons.edit,
+              color: isDark ? Colors.white : Colors.black,
+            ),
+            title: Text(
+              'Edit Expense',
+              style: TextStyle(
+                color: isDark ? Colors.white : Colors.black,
+              ),
+            ),
             onTap: () {
               Navigator.pop(context);
-              // Show edit expense sheet
+              _showEditExpenseSheet(context);
             },
           ),
-          _buildActionItem(
-            context,
-            icon: Icons.content_copy,
-            label: 'Duplicate',
-            onTap: () {
+
+          // Delete Action
+          ListTile(
+            leading: const Icon(
+              Icons.delete,
+              color: Colors.red,
+            ),
+            title: const Text(
+              'Delete Expense',
+              style: TextStyle(
+                color: Colors.red,
+              ),
+            ),
+            onTap: () async {
               Navigator.pop(context);
-              // Duplicate expense
+              await _deleteExpense(context);
             },
-          ),
-          _buildActionItem(
-            context,
-            icon: Icons.delete,
-            label: 'Delete',
-            onTap: () {
-              Navigator.pop(context);
-              _showDeleteConfirmation(context);
-            },
-            isDestructive: true,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildActionItem(
-      BuildContext context, {
-        required IconData icon,
-        required String label,
-        required VoidCallback onTap,
-        bool isDestructive = false,
-      }) {
-    final color = isDestructive ? Colors.red : Colors.black;
-
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 20,
-          vertical: 12,
-        ),
-        child: Row(
-          children: [
-            Icon(icon, color: color),
-            const SizedBox(width: 12),
-            Text(
-              label,
-              style: TextStyle(
-                color: color,
-                fontSize: 16,
-              ),
-            ),
-          ],
-        ),
-      ),
+  void _showEditExpenseSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => EditExpenseSheet(expense: expense),
     );
   }
 
-  Future<void> _showDeleteConfirmation(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
+  Future<void> _deleteExpense(BuildContext context) async {
+    final bool? confirm = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (BuildContext context) => AlertDialog(
         title: const Text('Delete Expense'),
         content: const Text(
           'Are you sure you want to delete this expense? This action cannot be undone.',
         ),
-        actions: [
+        actions: <Widget>[
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: const Text('CANCEL'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             child: const Text(
-              'Delete',
+              'DELETE',
               style: TextStyle(color: Colors.red),
             ),
           ),
@@ -128,9 +114,40 @@ class QuickActionsSheet extends StatelessWidget {
       ),
     );
 
-    if (confirmed == true) {
-      // Delete expense
-      context.read<ExpenseProvider>().deleteExpense(expense.id);
+    if (confirm == true && context.mounted) {
+      try {
+        print('Starting expense deletion process'); // Debug print
+        final expenseProvider = Provider.of<ExpenseProvider>(
+          context,
+          listen: false,
+        );
+
+        print('Deleting expense: ${expense.id}'); // Debug print
+        await expenseProvider.deleteExpense(expense.id);
+        print('Delete operation completed'); // Debug print
+
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Expense deleted successfully'),
+              behavior: SnackBarBehavior.floating,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      } catch (e) {
+        print('Error during deletion: $e'); // Debug print
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to delete expense: ${e.toString()}'),
+              behavior: SnackBarBehavior.floating,
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+      }
     }
   }
 }

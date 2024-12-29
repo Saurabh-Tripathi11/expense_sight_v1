@@ -11,10 +11,12 @@ import '../../providers/search_filter_provider.dart';
 import '../../widgets/expense/empty_expense_list.dart';
 import '../../widgets/expense/expense_list_item.dart';
 import '../../widgets/expense/expense_date_header.dart';
+import '../../widgets/expense/quick_actions_sheet.dart';
 import '../../widgets/expense/search_bar.dart';
 import '../../widgets/expense/filter_sheet.dart';
 import 'add_expense_sheet.dart';
 import '../../providers/search_filter_provider.dart';
+
 
 class ExpenseListScreen extends StatelessWidget {
   const ExpenseListScreen({Key? key}) : super(key: key);
@@ -166,17 +168,15 @@ class ExpenseListScreen extends StatelessWidget {
                             );
                             if (category == null) return const SizedBox.shrink();
 
-                            return ExpenseListItem(
-                              expense: expense,
-                              category: category,
-                              onTap: () => _showExpenseDetails(
-                                context,
-                                expense,
-                                category,
-                              ),
-                              onLongPress: () => _showQuickActions(
-                                context,
-                                expense,
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                              child: InkWell(
+                                onLongPress: () => _showQuickActions(context, expense),
+                                child: ExpenseListItem(
+                                  expense: expense,
+                                  category: category,
+                                  onTap: () => _showExpenseDetails(context, expense, category),
+                                ),
                               ),
                             );
                           }).toList(),
@@ -197,6 +197,16 @@ class ExpenseListScreen extends StatelessWidget {
         },
         child: const Icon(Icons.add),
       ),
+    );
+  }
+
+  void _showQuickActions(BuildContext context, Expense expense) {
+    HapticFeedback.mediumImpact();
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => QuickActionsSheet(expense: expense),
     );
   }
 
@@ -221,10 +231,6 @@ class ExpenseListScreen extends StatelessWidget {
 
   void _showExpenseDetails(BuildContext context, Expense expense, Category category) {
     // Show expense details screen (to be implemented)
-  }
-
-  void _showQuickActions(BuildContext context, Expense expense) {
-    // Show quick actions bottom sheet
   }
 
   void _showAddExpenseSheet(BuildContext context) {
