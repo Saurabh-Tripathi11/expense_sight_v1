@@ -35,7 +35,7 @@ class _FilterSheetState extends State<FilterSheet> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Header
+          // Header with Clear All
           Padding(
             padding: const EdgeInsets.all(16),
             child: Row(
@@ -45,12 +45,26 @@ class _FilterSheetState extends State<FilterSheet> {
                   onPressed: () => Navigator.pop(context),
                   child: const Text('Cancel'),
                 ),
-                const Text(
-                  'Filter',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                Column(
+                  children: [
+                    const Text(
+                      'Filter',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: _clearAllFilters,
+                      child: Text(
+                        'Clear All',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.primary,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 TextButton(
                   onPressed: _applyFilters,
@@ -79,6 +93,7 @@ class _FilterSheetState extends State<FilterSheet> {
       ),
     );
   }
+
 
   Widget _buildDateRangeSection() {
     return Column(
@@ -278,6 +293,23 @@ class _FilterSheetState extends State<FilterSheet> {
         );
       });
     }
+  }
+
+  // Add this method in the _FilterSheetState class, alongside other methods
+  void _clearAllFilters() {
+    setState(() {
+      _currentFilter = ExpenseFilter();  // Reset to default empty filter
+      _currentSortOption = ExpenseSortOption.dateDesc;  // Reset to default sort
+    });
+
+    // Show confirmation snackbar
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('All filters cleared'),
+        duration: Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   void _applyFilters() {

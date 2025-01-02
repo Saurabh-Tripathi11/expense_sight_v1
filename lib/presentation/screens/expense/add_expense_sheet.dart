@@ -85,8 +85,11 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> with SingleTickerProv
     HapticFeedback.mediumImpact();
 
     try {
+      // Convert amount string to actual decimal value
+      final double actualAmount = double.parse(_amount) / 100; // Convert to decimal
+
       await context.read<ExpenseProvider>().addExpense(
-        amount: double.parse(_amount),
+        amount: actualAmount,
         categoryId: _selectedCategoryId!,
         date: _selectedDate,
         note: _noteController.text.isEmpty ? null : _noteController.text,
@@ -263,10 +266,16 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> with SingleTickerProv
   }
 
   Widget _buildAmountDisplay() {
-    final isDark = Theme
-        .of(context)
-        .brightness == Brightness.dark;
-    final formattedAmount = '\$${_formatAmount(_amount)}';
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    // Convert string amount to display format
+    String formattedAmount = '';
+    if (_amount.length <= 2) {
+      formattedAmount = '0.${_amount.padLeft(2, '0')}';
+    } else {
+      final wholeNumber = _amount.substring(0, _amount.length - 2);
+      final decimal = _amount.substring(_amount.length - 2);
+      formattedAmount = '$wholeNumber.$decimal';
+    }
 
     return Padding(
       padding: const EdgeInsets.only(top: 20, bottom: 8),
@@ -274,7 +283,7 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> with SingleTickerProv
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            formattedAmount,
+            '\$$formattedAmount',
             style: TextStyle(
               fontSize: 40,
               fontWeight: FontWeight.bold,
