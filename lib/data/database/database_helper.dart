@@ -48,6 +48,7 @@ class DatabaseHelper {
     }
   }
 
+
   Future<Database> _initDatabase() async {
     final path = join(await getDatabasesPath(), dbName);
     print('Database path: $path'); // Debug print
@@ -258,36 +259,154 @@ class DatabaseHelper {
   }
 
   // Analytics Cache Operations
+  // Add analytics caching support
   Future<void> cacheAnalyticsData(String type, String data, Duration validity) async {
     final db = await database;
-    final now = DateTime.now();
-    await db.insert(
-      'analytics_cache',
-      {
-        'id': '${type}_${now.millisecondsSinceEpoch}',
-        'type': type,
-        'data': data,
-        'createdAt': now.millisecondsSinceEpoch,
-        'validUntil': now.add(validity).millisecondsSinceEpoch,
-      },
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
+    try {
+      final now = DateTime.now().millisecondsSinceEpoch;
+      await db.insert(
+        'analytics_cache',
+        {
+          'type': type,
+          'data': data,
+          'timestamp': now,
+          'valid_until': now + validity.inMilliseconds,
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    } catch (e) {
+      print('Error caching analytics data: $e');
+      throw Exception('Failed to cache analytics data');
+    }
   }
 
   Future<String?> getAnalyticsCache(String type) async {
     final db = await database;
-    final now = DateTime.now().millisecondsSinceEpoch;
+    try {
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final List<Map<String, dynamic>> maps = await db.query(
+        'analytics_cache',
+        where: 'type = ? AND valid_until > ?',
+        whereArgs: [type, now],
+        orderBy: 'timestamp DESC',
+        limit: 1,
+      );
 
-    final List<Map<String, dynamic>> maps = await db.query(
-      'analytics_cache',
-      where: 'type = ? AND validUntil > ?',
-      whereArgs: [type, now],
-      orderBy: 'createdAt DESC',
-      limit: 1,
-    );
+      if (maps.isEmpty) {
+        return null;
+      }
 
-    if (maps.isEmpty) return null;
-    return maps.first['data'] as String;
+      return maps.first['data'] as String;
+    } catch (e) {
+      print('Error getting analytics cache: $e');
+      return null;
+    }
+  }
+  Future<List<Map<String, dynamic>>> getAnalyticsSummary(DateTime startDate, DateTime endDate) async {
+    final db = await database;
+    try {
+      // Get total expenses and categories for the period
+      final result = await db.rawQuery('''
+        SELECT 
+          SUM(amount) as totalAmount,
+          COUNT(*) as totalTransactions,
+          categoryId,
+          MIN(date) as firstTransaction,
+          MAX(date) as lastTransaction
+        FROM expenses
+        WHERE date >= ? AND date <= ?
+        GROUP BY categoryId
+      ''', [
+        startDate.millisecondsSinceEpoch,
+        endDate.millisecondsSinceEpoch,
+      ]);
+
+      return result;
+    } catch (e) {
+      print('Error getting analytics summary: $e');
+      throw Exception('Failed to get analytics summary');
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getDailyExpenses(DateTime startDate, DateTime endDate) async {
+    final db = await database;
+    try {
+      final result = await db.rawQuery('''
+        SELECT 
+          date,
+          SUM(amount) as dailyTotal,
+          categoryId,
+          COUNT(*) as transactionCount
+        FROM expenses
+        WHERE date >= ? AND date <= ?
+        GROUP BY date, categoryId
+        ORDER BY date ASC
+      ''', [
+        startDate.millisecondsSinceEpoch,
+        endDate.millisecondsSinceEpoch,
+      ]);
+
+      return result;
+    } catch (e) {
+      print('Error getting daily expenses: $e');
+      throw Exception('Failed to get daily expenses');
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getCategoryTrends(DateTime startDate, DateTime endDate) async {
+    final db = await database;
+    try {
+      final result = await db.rawQuery('''
+        SELECT 
+          categoryId,
+          strftime('%Y-%m', datetime(date/1000, 'unixepoch')) as month,
+          SUM(amount) as monthlyTotal,
+          COUNT(*) as transactionCount
+        FROM expenses
+        WHERE date >= ? AND date <= ?
+        GROUP BY categoryId, month
+        ORDER BY month ASC
+      ''', [
+        startDate.millisecondsSinceEpoch,
+        endDate.millisecondsSinceEpoch,
+      ]);
+
+      return result;
+    } catch (e) {
+      print('Error getting category trends: $e');
+      throw Exception('Failed to get category trends');
+    }
+  }
+
+  Future<Category> getCategoryById(String id) async {
+    final db = await database;
+    try {
+      final List<Map<String, dynamic>> maps = await db.query(
+        'categories',
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+
+      if (maps.isEmpty) {
+        throw Exception('Category not found');
+      }
+
+      return Category.fromMap(maps.first);
+    } catch (e) {
+      print('Error getting category by ID: $e');
+      throw Exception('Failed to get category');
+    }
+  }
+
+
+  Future<void> clearAnalyticsCache() async {
+    final db = await database;
+    try {
+      await db.delete('analytics_cache');
+    } catch (e) {
+      print('Error clearing analytics cache: $e');
+      throw Exception('Failed to clear analytics cache');
+    }
   }
 
   // Cleanup Operations

@@ -1,4 +1,57 @@
-// lib/domain/models/analytics_data.dart
+
+// File: lib/domain/models/analytics_data.dart
+
+import 'dart:ui';
+import 'package:flutter/foundation.dart';
+
+
+class AnalyticsSummary {
+  final double totalExpenses;
+  final double dailyAverage;
+  final double monthlyChange;
+  final String topCategory;
+  final DateTime startDate;
+  final DateTime endDate;
+
+  AnalyticsSummary({
+    required this.totalExpenses,
+    required this.dailyAverage,
+    required this.monthlyChange,
+    required this.topCategory,
+    required this.startDate,
+    required this.endDate,
+  });
+}
+
+class CategoryAnalytics {
+  final String categoryId;
+  final String categoryName;
+  final double amount;
+  final double percentage;
+  final String icon;
+  final Color color;
+
+  CategoryAnalytics({
+    required this.categoryId,
+    required this.categoryName,
+    required this.amount,
+    required this.percentage,
+    required this.icon,
+    required this.color,
+  });
+}
+
+class ExpenseTrend {
+  final DateTime date;
+  final double amount;
+  final Map<String, double> categoryAmounts;
+
+  ExpenseTrend({
+    required this.date,
+    required this.amount,
+    required this.categoryAmounts,
+  });
+}
 class AnalyticsData {
   final double totalExpenses;
   final double averagePerDay;
@@ -15,6 +68,8 @@ class AnalyticsData {
     required this.startDate,
     required this.endDate,
   });
+
+
 
   Map<String, dynamic> toJson() {
     return {

@@ -1,5 +1,6 @@
 // lib/main.dart
 
+import 'package:expense_sight/presentation/providers/analytics_provider.dart';
 import 'package:expense_sight/presentation/screens/analytics/analytics_screen.dart';
 import 'package:expense_sight/presentation/screens/auth/sign_in_screen.dart';
 import 'package:expense_sight/presentation/screens/category/category_list_screen.dart';
@@ -72,13 +73,17 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(
           create: (_) => ExpenseProvider(dbHelper),
         ),
-        // Add Search and Filter provider
+        // Analytics provider
+        ChangeNotifierProvider(
+          create: (_) => AnalyticsProvider(dbHelper),
+        ),
+        // Search and Filter provider
         ChangeNotifierProvider(
           create: (_) => SearchFilterProvider(),
         ),
       ],
       child: Consumer<SettingsProvider>(
-        builder: (context, settings, _) {
+      builder: (context, settings, _) {
           return MaterialApp(
             title: 'Expense Sight',
             debugShowCheckedModeBanner: false,
@@ -110,7 +115,7 @@ class MyApp extends StatelessWidget {
             routes: {
               '/settings': (context) => const SettingsScreen(),
               '/categories': (context) => const CategoryListScreen(),
-              '/analytics': (context) => const AnalyticsScreen(),
+              '/analytics': (context) => const AnalyticsScreen(),  // Add this line
             },
           );
         },
