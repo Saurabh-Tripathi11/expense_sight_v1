@@ -39,6 +39,7 @@ class AppTheme {
     letterSpacing: 0.15,
   );
 
+
   // Light Theme
   static ThemeData get lightTheme {
     return ThemeData(

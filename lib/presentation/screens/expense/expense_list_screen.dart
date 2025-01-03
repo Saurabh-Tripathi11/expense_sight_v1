@@ -29,41 +29,59 @@ class ExpenseListScreen extends StatefulWidget {
 class _ExpenseListScreenState extends State<ExpenseListScreen> {
   int _selectedIndex = 0;
 
-  // List of screen widgets to display
   final List<Widget> _screens = const [
-    _ExpenseListContent(),  // We'll create this below
+    _ExpenseListContent(),
     AnalyticsScreen(),
     CategoryListScreen(),
   ];
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor = Theme.of(context).primaryColor;
+    final selectedColor = isDark ? Colors.white : primaryColor;
+    final unselectedColor = isDark ? Colors.white70 : Colors.grey[700];
+
     return Scaffold(
-      body: _screens[_selectedIndex], // Show selected screen
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex,
-        onTap: (index) {
+      body: _screens[_selectedIndex],
+      bottomNavigationBar: NavigationBar(
+        height: 65,
+        selectedIndex: _selectedIndex,
+        onDestinationSelected: (index) {
           setState(() {
             _selectedIndex = index;
           });
         },
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.account_balance_wallet),
+        backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+        surfaceTintColor: Colors.transparent,
+        indicatorColor: primaryColor.withOpacity(isDark ? 0.3 : 0.1),
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+        destinations: [
+          _buildNavigationDestination(
+            selectedIcon: Icons.account_balance_wallet,
+            unselectedIcon: Icons.account_balance_wallet_outlined,
             label: 'Expenses',
+            selectedColor: selectedColor,
+            unselectedColor: unselectedColor,
+            isSelected: _selectedIndex == 0,
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.analytics),
+          _buildNavigationDestination(
+            selectedIcon: Icons.analytics,
+            unselectedIcon: Icons.analytics_outlined,
             label: 'Analytics',
+            selectedColor: selectedColor,
+            unselectedColor: unselectedColor,
+            isSelected: _selectedIndex == 1,
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.category),
+          _buildNavigationDestination(
+            selectedIcon: Icons.category,
+            unselectedIcon: Icons.category_outlined,
             label: 'Categories',
+            selectedColor: selectedColor,
+            unselectedColor: unselectedColor,
+            isSelected: _selectedIndex == 2,
           ),
         ],
-        selectedItemColor: Theme.of(context).primaryColor,
-        unselectedItemColor: Colors.grey,
-        type: BottomNavigationBarType.fixed,
       ),
       floatingActionButton: _selectedIndex == 0 ? FloatingActionButton(
         onPressed: () {
@@ -72,6 +90,29 @@ class _ExpenseListScreenState extends State<ExpenseListScreen> {
         },
         child: const Icon(Icons.add),
       ) : null,
+    );
+  }
+
+  NavigationDestination _buildNavigationDestination({
+    required IconData selectedIcon,
+    required IconData unselectedIcon,
+    required String label,
+    required Color selectedColor,
+    required Color? unselectedColor,
+    required bool isSelected,
+  }) {
+    return NavigationDestination(
+      icon: Icon(
+        unselectedIcon,
+        color: unselectedColor,
+        size: 24,
+      ),
+      selectedIcon: Icon(
+        selectedIcon,
+        color: selectedColor,
+        size: 24,
+      ),
+      label: label,
     );
   }
 

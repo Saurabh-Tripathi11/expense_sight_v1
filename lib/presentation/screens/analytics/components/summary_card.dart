@@ -1,4 +1,4 @@
-// File: lib/presentation/screens/analytics/components/summary_card.dart
+// lib/presentation/screens/analytics/components/summary_card.dart
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -10,7 +10,7 @@ class SummaryCard extends StatelessWidget {
   final double? trend;
   final Color? backgroundColor;
   final Color? iconColor;
-  final Widget? customContent; // Add this line
+  final Widget? customContent;
 
   const SummaryCard({
     Key? key,
@@ -38,9 +38,9 @@ class SummaryCard extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            // Icon and Title
+            // Icon and Title Row
             Row(
               children: [
                 Container(
@@ -56,50 +56,65 @@ class SummaryCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: isDark ? Colors.grey[400] : Colors.grey[600],
+                Expanded(
+                  child: Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: isDark ? Colors.grey[400] : Colors.grey[600],
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
             ),
 
+            const SizedBox(height: 12),
+
             // Value and Trend
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  currencyFormat.format(value),
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                if (trend != null) ...[
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Icon(
-                        trend! >= 0 ? Icons.arrow_upward : Icons.arrow_downward,
-                        color: trend! >= 0 ? Colors.green : Colors.red,
-                        size: 16,
+            if (customContent != null)
+              customContent!
+            else
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      currencyFormat.format(value),
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
                       ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${trend!.abs().toStringAsFixed(1)}%',
-                        style: TextStyle(
-                          fontSize: 12,
+                    ),
+                  ),
+                  if (trend != null) ...[
+                    const SizedBox(height: 4),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          trend! >= 0 ? Icons.arrow_upward : Icons.arrow_downward,
                           color: trend! >= 0 ? Colors.green : Colors.red,
-                          fontWeight: FontWeight.w500,
+                          size: 16,
                         ),
-                      ),
-                    ],
-                  ),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            '${trend!.abs().toStringAsFixed(1)}%',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: trend! >= 0 ? Colors.green : Colors.red,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
-              ],
-            ),
+              ),
           ],
         ),
       ),
@@ -137,20 +152,3 @@ class SummaryCardGrid extends StatelessWidget {
     );
   }
 }
-
-// Example Usage:
-// SummaryCardGrid(
-//   cards: [
-//     SummaryCard(
-//       title: 'Total Expenses',
-//       value: 1234.56,
-//       icon: Icons.account_balance_wallet,
-//       trend: 12.5,
-//     ),
-//     SummaryCard(
-//       title: 'Daily Average',
-//       value: 45.67,
-//       icon: Icons.trending_up,
-//     ),
-//   ],
-// ),
