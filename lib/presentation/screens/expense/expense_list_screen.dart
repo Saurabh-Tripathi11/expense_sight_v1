@@ -19,6 +19,82 @@ import '../analytics/analytics_screen.dart';
 import '../category/category_list_screen.dart';
 import 'add_expense_sheet.dart';
 
+import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
+import 'package:provider/provider.dart';
+import '../../../domain/models/expense.dart';
+import '../../providers/expense_provider.dart';
+
+class OptimizedExpenseList extends StatelessWidget {
+  const OptimizedExpenseList({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<ExpenseProvider>(
+      builder: (context, provider, _) {
+        if (provider.expenses.isEmpty) {
+          return const Center(child: Text('No expenses'));
+        }
+
+        return CustomScrollView(
+          physics: const BouncingScrollPhysics(
+            parent: AlwaysScrollableScrollPhysics(),
+          ),
+          cacheExtent: 1000, // Increase cache for smoother scrolling
+          slivers: [
+            SliverList(
+              delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                  final expense = provider.expenses[index];
+
+                  // Use RepaintBoundary to optimize rendering
+                  return RepaintBoundary(
+                    child: _ExpenseItem(
+                      expense: expense,
+                      // Use const constructor where possible
+                      key: ValueKey(expense.id),
+                    ),
+                  );
+                },
+                childCount: provider.expenses.length,
+                // Add custom config for better performance
+                addAutomaticKeepAlives: true,
+                addRepaintBoundaries: true,
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _ExpenseItem extends StatelessWidget {
+  final Expense expense;
+
+  const _ExpenseItem({
+    Key? key,
+    required this.expense,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    // Optimize rebuild with const where possible
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 16,
+        vertical: 8,
+      ),
+      child: Card(
+        child: ListTile(
+          title: Text(expense.amount.toString()),
+          subtitle: Text(expense.date.toString()),
+        ),
+      ),
+    );
+  }
+}
+
 class ExpenseListScreen extends StatefulWidget {
   const ExpenseListScreen({Key? key}) : super(key: key);
 

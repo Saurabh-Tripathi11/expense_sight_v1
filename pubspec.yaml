@@ -40,6 +40,10 @@ dependencies:
   path: ^1.8.3
   fl_chart: ^0.66.2
   foundation:
+  flutter_displaymode: ^0.6.0  # Latest version for better 120Hz support
+
+
+
 
 
   #  path: ^1.8.3

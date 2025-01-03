@@ -1,15 +1,9 @@
-// lib/main.dart
+import 'dart:ui';
 
-import 'package:expense_sight/presentation/providers/analytics_provider.dart';
-import 'package:expense_sight/presentation/screens/analytics/analytics_screen.dart';
-import 'package:expense_sight/presentation/screens/auth/sign_in_screen.dart';
-import 'package:expense_sight/presentation/screens/category/category_list_screen.dart';
-import 'package:expense_sight/presentation/screens/settings/settings_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_displaymode/flutter_displaymode.dart';
 import 'package:provider/provider.dart';
-import 'package:path/path.dart';
-import 'package:sqflite/sqflite.dart';
 import 'core/theme/app_theme.dart';
 import 'data/database/database_helper.dart';
 import 'presentation/providers/expense_provider.dart';
@@ -17,8 +11,28 @@ import 'presentation/providers/category_provider.dart';
 import 'presentation/providers/settings_provider.dart';
 import 'presentation/providers/auth_provider.dart';
 import 'presentation/providers/search_filter_provider.dart';
+import 'presentation/providers/analytics_provider.dart';
+import 'presentation/screens/auth/sign_in_screen.dart';
 
-void main() async {
+// Custom scroll behavior to enable smooth scrolling
+class CustomScrollBehavior extends ScrollBehavior {
+  const CustomScrollBehavior();
+
+  @override
+  ScrollPhysics getScrollPhysics(BuildContext context) {
+    return const BouncingScrollPhysics(
+      parent: AlwaysScrollableScrollPhysics(),
+    );
+  }
+
+  @override
+  Set<PointerDeviceKind> get dragDevices => {
+    PointerDeviceKind.touch,
+    PointerDeviceKind.mouse,
+  };
+}
+
+Future<void> main() async {
   // Ensure Flutter is initialized
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -27,6 +41,9 @@ void main() async {
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
+
+  // Enable high refresh rate support
+  await _enableHighRefreshRate();
 
   // Set system UI overlay style
   SystemChrome.setSystemUIOverlayStyle(
@@ -40,9 +57,35 @@ void main() async {
 
   // Initialize database
   final dbHelper = DatabaseHelper.instance;
-  await dbHelper.database; // Ensure database is initialized
+  await dbHelper.database;
 
   runApp(MyApp(dbHelper: dbHelper));
+}
+
+Future<void> _enableHighRefreshRate() async {
+  try {
+    await FlutterDisplayMode.setHighRefreshRate();
+
+    // Get all supported modes
+    final List<DisplayMode> supported = await FlutterDisplayMode.supported;
+    final DisplayMode active = await FlutterDisplayMode.active;
+
+    // Find modes with the same resolution as the active mode
+    final List<DisplayMode> sameResolution = supported
+        .where((DisplayMode m) =>
+    m.width == active.width && m.height == active.height)
+        .toList()
+      ..sort((DisplayMode a, DisplayMode b) =>
+          b.refreshRate.compareTo(a.refreshRate));
+
+    // Set the highest refresh rate mode
+    if (sameResolution.isNotEmpty) {
+      await FlutterDisplayMode.setPreferredMode(sameResolution.first);
+      debugPrint('Display mode set to: ${sameResolution.first.refreshRate}Hz');
+    }
+  } catch (e) {
+    debugPrint('Failed to set high refresh rate: $e');
+  }
 }
 
 class MyApp extends StatelessWidget {
@@ -57,127 +100,32 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        // Auth provider
-        ChangeNotifierProvider(
-          create: (_) => AuthProvider(),
-        ),
-        // Settings provider
-        ChangeNotifierProvider(
-          create: (_) => SettingsProvider(dbHelper),
-        ),
-        // Category provider
-        ChangeNotifierProvider(
-          create: (_) => CategoryProvider(dbHelper),
-        ),
-        // Expense provider
-        ChangeNotifierProvider(
-          create: (_) => ExpenseProvider(dbHelper),
-        ),
-        // Analytics provider
-        ChangeNotifierProvider(
-          create: (_) => AnalyticsProvider(dbHelper),
-        ),
-        // Search and Filter provider
-        ChangeNotifierProvider(
-          create: (_) => SearchFilterProvider(),
-        ),
+        ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider(create: (_) => SettingsProvider(dbHelper)),
+        ChangeNotifierProvider(create: (_) => CategoryProvider(dbHelper)),
+        ChangeNotifierProvider(create: (_) => ExpenseProvider(dbHelper)),
+        ChangeNotifierProvider(create: (_) => AnalyticsProvider(dbHelper)),
+        ChangeNotifierProvider(create: (_) => SearchFilterProvider()),
       ],
       child: Consumer<SettingsProvider>(
-      builder: (context, settings, _) {
+        builder: (context, settings, _) {
           return MaterialApp(
             title: 'Expense Sight',
             debugShowCheckedModeBanner: false,
             themeMode: settings.settings.themeMode,
             theme: AppTheme.lightTheme,
             darkTheme: AppTheme.darkTheme,
+            scrollBehavior: const CustomScrollBehavior(),
             builder: (context, child) {
               return ScrollConfiguration(
-                behavior: const ScrollBehavior().copyWith(
-                  physics: const BouncingScrollPhysics(),
-                ),
+                behavior: const CustomScrollBehavior(),
                 child: child!,
               );
             },
-            home: Consumer<AuthProvider>(
-              builder: (context, auth, _) {
-                // Show loading indicator while checking auth state
-                if (auth.isLoading) {
-                  return const Scaffold(
-                    body: Center(
-                      child: CircularProgressIndicator(),
-                    ),
-                  );
-                }
-                // Show sign in screen if not authenticated
-                return const SignInScreen();
-              },
-            ),
-            routes: {
-              '/settings': (context) => const SettingsScreen(),
-              '/categories': (context) => const CategoryListScreen(),
-              '/analytics': (context) => const AnalyticsScreen(),  // Add this line
-            },
+            home: const SignInScreen(),
           );
         },
       ),
-    );
-  }
-}
-
-// Global error boundary widget
-class AppErrorBoundary extends StatelessWidget {
-  final Widget child;
-
-  const AppErrorBoundary({
-    Key? key,
-    required this.child,
-  }) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      builder: (context, widget) {
-        Widget error = const Text('...rendering error...');
-
-        if (widget is Scaffold || widget is Navigator) {
-          error = Scaffold(body: Center(child: error));
-        }
-
-        ErrorWidget.builder = (errorDetails) {
-          return Center(
-            child: Card(
-              margin: const EdgeInsets.all(16),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.error_outline,
-                      color: Colors.red,
-                      size: 48,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Something went wrong',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      errorDetails.exception.toString(),
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          );
-        };
-
-        return widget ?? error;
-      },
-      home: child,
     );
   }
 }
