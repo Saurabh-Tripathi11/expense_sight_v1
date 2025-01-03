@@ -128,38 +128,6 @@ class AnalyticsProvider with ChangeNotifier {
     _categoryAnalytics = categoryAnalyticsList;
   }
 
-  void _processTrendData(List<Expense> expenses, DateTime startDate, DateTime endDate) {
-    final trendsList = <ExpenseTrend>[];
-    DateTime currentDate = startDate;
-
-    while (currentDate.isBefore(endDate) || currentDate == endDate) {
-      final dayExpenses = expenses.where((e) {
-        final expenseDate = DateTime(e.date.year, e.date.month, e.date.day);
-        return expenseDate == currentDate;
-      }).toList();
-
-      final dailyTotal = dayExpenses.fold<double>(
-        0,
-            (sum, expense) => sum + expense.amount,
-      );
-
-      final categoryAmounts = <String, double>{};
-      for (final expense in dayExpenses) {
-        categoryAmounts[expense.categoryId] =
-            (categoryAmounts[expense.categoryId] ?? 0) + expense.amount;
-      }
-
-      trendsList.add(ExpenseTrend(
-        date: currentDate,
-        amount: dailyTotal,
-        categoryAmounts: categoryAmounts,
-      ));
-
-      currentDate = currentDate.add(const Duration(days: 1));
-    }
-
-    _trends = trendsList;
-  }
 
   Future<double> _calculateMonthlyChange(
       List<Expense> expenses,
@@ -230,6 +198,88 @@ class AnalyticsProvider with ChangeNotifier {
     _error = null;
     notifyListeners();
   }
+
+  // In AnalyticsProvider class, update the _processTrendData method:
+
+  // ... other code remains same ...
+
+  void _processTrendData(List<Expense> expenses, DateTime startDate, DateTime endDate) {
+  print('Processing trend data for ${expenses.length} expenses');
+  final trendsList = <ExpenseTrend>[];
+
+  if (expenses.isEmpty) {
+  print('No expenses to process');
+  _trends = [];
+  return;
+  }
+
+  // Create a map to store daily totals
+  final Map<DateTime, double> dailyTotals = {};
+
+  // Initialize all dates in range with 0
+  // Modify this part to include the end date properly
+  DateTime currentDate = DateTime(startDate.year, startDate.month, startDate.day);
+  final endDateTime = DateTime(endDate.year, endDate.month, endDate.day, 23, 59, 59);
+
+  while (currentDate.isBefore(endDateTime) || currentDate.isAtSameMomentAs(endDateTime)) {
+  final normalizedDate = DateTime(currentDate.year, currentDate.month, currentDate.day);
+  dailyTotals[normalizedDate] = 0;
+  currentDate = currentDate.add(const Duration(days: 1));
+  }
+
+  // Add up expenses for each day
+  for (final expense in expenses) {
+  final normalizedDate = DateTime(
+  expense.date.year,
+  expense.date.month,
+  expense.date.day,
+  );
+  dailyTotals[normalizedDate] = (dailyTotals[normalizedDate] ?? 0) + expense.amount;
+  }
+
+  // Convert to trend objects
+  dailyTotals.forEach((date, amount) {
+  print('Creating trend for date: $date with amount: $amount'); // Debug print
+  trendsList.add(ExpenseTrend(
+  date: date,
+  amount: amount,
+  categoryAmounts: _getCategoryAmountsForDate(expenses, date),
+  ));
+  });
+
+  // Sort by date
+  trendsList.sort((a, b) => a.date.compareTo(b.date));
+
+  print('Generated ${trendsList.length} trend data points');
+  trendsList.forEach((trend) {
+  print('Date: ${trend.date}, Amount: ${trend.amount}');
+  });
+
+  _trends = trendsList;
+  notifyListeners();
+  }
+
+  Map<String, double> _getCategoryAmountsForDate(List<Expense> expenses, DateTime date) {
+  final categoryAmounts = <String, double>{};
+
+  final dayExpenses = expenses.where((expense) {
+  final expenseDate = DateTime(
+  expense.date.year,
+  expense.date.month,
+  expense.date.day,
+  );
+  // Use isAtSameMomentAs instead of == for date comparison
+  return expenseDate.isAtSameMomentAs(date);
+  });
+
+  for (final expense in dayExpenses) {
+  categoryAmounts[expense.categoryId] =
+  (categoryAmounts[expense.categoryId] ?? 0) + expense.amount;
+  }
+
+  return categoryAmounts;
+  }
+
 
   // Method to export analytics data
   Map<String, dynamic> exportAnalytics() {

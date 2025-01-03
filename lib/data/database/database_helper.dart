@@ -118,18 +118,24 @@ class DatabaseHelper {
   // Expense Operations
 
   Future<List<Expense>> getExpensesByDateRange(DateTime start, DateTime end) async {
-    final db = await database;
-    final List<Map<String, dynamic>> maps = await db.query(
-      'expenses',
-      where: 'date >= ? AND date <= ?',
-      whereArgs: [
-        start.millisecondsSinceEpoch,
-        end.millisecondsSinceEpoch,
-      ],
-      orderBy: 'date DESC',
-    );
+    try {
+      final db = await database;
+      final startTimestamp = DateTime(start.year, start.month, start.day).millisecondsSinceEpoch;
+      final endTimestamp = DateTime(end.year, end.month, end.day, 23, 59, 59).millisecondsSinceEpoch;
 
-    return List.generate(maps.length, (i) => Expense.fromMap(maps[i]));
+      final List<Map<String, dynamic>> maps = await db.query(
+        'expenses',
+        where: 'date >= ? AND date <= ?',
+        whereArgs: [startTimestamp, endTimestamp],
+        orderBy: 'date DESC',
+      );
+
+      print('DatabaseHelper: Found ${maps.length} expenses in date range');
+      return List.generate(maps.length, (i) => Expense.fromMap(maps[i]));
+    } catch (e) {
+      print('DatabaseHelper: Error getting expenses by date range: $e');
+      throw Exception('Failed to get expenses by date range: $e');
+    }
   }
 
   Future<void> insertExpense(Expense expense) async {
